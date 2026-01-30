@@ -122,9 +122,18 @@
         return null;
       }
 
-      if (!!node.id || !!node.ariaLabel || !!node.name || !!node.title || !!node.htmlFor || !!node.attributes['data-testid']) {
-        const title = typeof node.title === 'string' ? node.title : null
-        attributes['resource-id'] = node.id || node.ariaLabel || node.name || title || node.htmlFor || node.attributes['data-testid']?.value
+      const getAttr = (name) => node.getAttribute ? node.getAttribute(name) : null;
+      const id = getAttr('id');
+      const ariaLabel = getAttr('aria-label') || node.ariaLabel;
+      const name = getAttr('name');
+      const title = getAttr('title');
+      const htmlFor = getAttr('for');
+      const testId = getAttr('data-testid');
+      
+      const resourceId = id || ariaLabel || name || title || htmlFor || testId;
+
+      if (resourceId) {
+        attributes['resource-id'] = resourceId;
       }
 
       if (node.tagName.toLowerCase() === 'body') {
