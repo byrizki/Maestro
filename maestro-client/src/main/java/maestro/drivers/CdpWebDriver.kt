@@ -98,11 +98,25 @@ class CdpWebDriver(
 
         val driverService = ChromeDriverService.Builder()
             .withLogLevel(ChromiumDriverLogLevel.OFF)
+            .apply {
+                System.getenv("CHROME_DRIVER_BINARY")?.let {
+                    if (it.isNotEmpty()) {
+                        println("Using CHROME_DRIVER_BINARY: $it")
+                        usingDriverExecutable(File(it))
+                    }
+                }
+            }
             .build()
 
         val driver = ChromeDriver(
             driverService,
             ChromeOptions().apply {
+                System.getenv("CHROME_BINARY")?.let {
+                    if (it.isNotEmpty()) {
+                        println("Using CHROME_BINARY: $it")
+                        setBinary(it)
+                    }
+                }
                 addArguments("--remote-allow-origins=*")
                 addArguments("--disable-search-engine-choice-screen")
                 addArguments("--lang=en")
