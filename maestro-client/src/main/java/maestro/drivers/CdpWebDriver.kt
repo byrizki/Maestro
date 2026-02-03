@@ -317,6 +317,9 @@ class CdpWebDriver(
         if (attrs.containsKey("ignoreBoundsFiltering") && attrs["ignoreBoundsFiltering"] != null) {
             attributes["ignoreBoundsFiltering"] = (attrs["ignoreBoundsFiltering"] as Boolean).toString()
         }
+        if (attrs.containsKey("data-testid") && attrs["data-testid"] != null) {
+            attributes["data-testid"] = attrs["data-testid"] as String
+        }
 
         val children = domRepresentation["children"] as List<Map<String, Any>>
 
