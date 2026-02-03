@@ -120,6 +120,9 @@ class CdpWebDriver(
                 addArguments("--remote-allow-origins=*")
                 addArguments("--disable-search-engine-choice-screen")
                 addArguments("--lang=en")
+                addArguments("--no-sandbox")
+                addArguments("--disable-dev-shm-usage")
+                addArguments("--disable-gpu")
 
                 // Disable password management
                 addArguments("--password-store=basic")
