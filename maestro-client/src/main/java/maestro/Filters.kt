@@ -98,9 +98,15 @@ object Filters {
         return { nodes ->
             val exactMatches = nodes
                 .filter {
-                    it.attributes["resource-id"]?.let { value ->
+                    val resourceIdMatch = it.attributes["resource-id"]?.let { value ->
                         regex.matches(value)
                     } ?: false
+
+                    val testIdMatch = it.attributes["data-testid"]?.let { value ->
+                        regex.matches(value)
+                    } ?: false
+
+                    resourceIdMatch || testIdMatch
                 }
                 .toSet()
 
