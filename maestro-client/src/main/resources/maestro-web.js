@@ -106,6 +106,10 @@
       if (resourceId) {
         attributes['resource-id'] = resourceId;
       }
+      
+      if (testId) {
+        attributes['data-testid'] = testId;
+      }
 
       if (node.tagName.toLowerCase() === 'body') {
         attributes['is-loading'] = isDocumentLoading()
