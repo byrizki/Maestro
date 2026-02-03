@@ -22,7 +22,7 @@ jobs:
           cache: gradle
 
       - name: Build CLI
-        run: ./gradlew :maestro-cli:distZip -PVERSION_NAME=${{ inputs.tag }}
+        run: ./gradlew :maestro-cli:distZip -PCLI_VERSION=${{ inputs.tag }} -PVERSION_NAME=${{ inputs.tag }}
 
       - name: Create Release
         uses: softprops/action-gh-release@v1
