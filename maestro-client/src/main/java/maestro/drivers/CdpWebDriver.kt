@@ -29,13 +29,14 @@ import org.openqa.selenium.chrome.ChromeDriverService
 import org.openqa.selenium.chrome.ChromeOptions
 import org.openqa.selenium.chromium.ChromiumDriverLogLevel
 import org.openqa.selenium.devtools.HasDevTools
-import org.openqa.selenium.devtools.v141.emulation.Emulation
+import org.openqa.selenium.devtools.v144.emulation.Emulation
 import org.openqa.selenium.interactions.Actions
 import org.openqa.selenium.interactions.PointerInput
 import org.openqa.selenium.interactions.Sequence
 import org.openqa.selenium.remote.RemoteWebDriver
 import org.slf4j.LoggerFactory
 import java.io.File
+import java.net.URI
 import java.time.Duration
 import java.util.*
 import java.util.logging.Level
@@ -340,7 +341,34 @@ class CdpWebDriver(
     }
 
     override fun clearAppState(appId: String) {
-        // Do nothing
+        ensureOpen()
+
+        val origin = try {
+            val uri = URI(appId)
+            if (uri.scheme.isNullOrBlank() || uri.host.isNullOrBlank()) {
+                null
+            } else if (uri.port == -1) {
+                "${uri.scheme}://${uri.host}"
+            } else {
+                "${uri.scheme}://${uri.host}:${uri.port}"
+            }
+        } catch (e: Exception) {
+            LOGGER.warn("Failed to parse origin from $appId", e)
+            null
+        }
+
+        if (origin == null) {
+            return
+        }
+
+        try {
+            runBlocking {
+                val target = cdpClient.listTargets().first()
+                cdpClient.clearDataForOrigin(origin, "all", target)
+            }
+        } catch (e: Exception) {
+            LOGGER.warn("Failed to clear browser data for $origin", e)
+        }
     }
 
     override fun clearKeychain() {
@@ -419,7 +447,16 @@ class CdpWebDriver(
     }
 
     override fun scrollVertical() {
-        scroll("window.scrollY + Math.round(window.innerHeight / 2)", "window.scrollX")
+        // Check if this is a Flutter web app
+        val isFlutter = executeJS("window.maestro.isFlutterApp()") as? Boolean ?: false
+        
+        if (isFlutter) {
+            // Use Flutter-specific smooth animated scrolling
+            executeJS("window.maestro.smoothScrollFlutter('UP', 500)")
+        } else {
+            // Use standard scroll for regular web pages
+            scroll("window.scrollY + Math.round(window.innerHeight / 2)", "window.scrollX")
+        }
     }
 
     override fun isKeyboardVisible(): Boolean {
@@ -453,11 +490,19 @@ class CdpWebDriver(
     }
 
     override fun swipe(swipeDirection: SwipeDirection, durationMs: Long) {
-        when (swipeDirection) {
-            SwipeDirection.UP -> scroll("window.scrollY + Math.round(window.innerHeight / 2)", "window.scrollX")
-            SwipeDirection.DOWN -> scroll("window.scrollY - Math.round(window.innerHeight / 2)", "window.scrollX")
-            SwipeDirection.LEFT -> scroll("window.scrollY", "window.scrollX + Math.round(window.innerWidth / 2)")
-            SwipeDirection.RIGHT -> scroll("window.scrollY", "window.scrollX - Math.round(window.innerWidth / 2)")
+        val isFlutter = executeJS("window.maestro.isFlutterApp()") as? Boolean ?: false
+        
+        if (isFlutter) {
+            // Flutter web: Use smooth animated scrolling with easing
+            executeJS("window.maestro.smoothScrollFlutter('${swipeDirection.name}', $durationMs)")
+        } else {
+            // HTML web: Use standard window scrolling
+            when (swipeDirection) {
+                SwipeDirection.UP -> scroll("window.scrollY + Math.round(window.innerHeight / 2)", "window.scrollX")
+                SwipeDirection.DOWN -> scroll("window.scrollY - Math.round(window.innerHeight / 2)", "window.scrollX")
+                SwipeDirection.LEFT -> scroll("window.scrollY", "window.scrollX + Math.round(window.innerWidth / 2)")
+                SwipeDirection.RIGHT -> scroll("window.scrollY", "window.scrollX - Math.round(window.innerWidth / 2)")
+            }
         }
     }
 
