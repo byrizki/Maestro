@@ -124,6 +124,8 @@ class CdpWebDriver(
                 addArguments("--no-sandbox")
                 addArguments("--disable-dev-shm-usage")
                 addArguments("--disable-gpu")
+                addArguments("--disable-setuid-sandbox")
+                addArguments("--incognito")
 
                 // Disable password management
                 addArguments("--password-store=basic")

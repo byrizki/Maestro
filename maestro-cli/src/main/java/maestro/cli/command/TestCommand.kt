@@ -23,6 +23,7 @@ import kotlinx.coroutines.CoroutineName
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.runBlocking
 import maestro.Maestro
 import maestro.cli.App
@@ -75,6 +76,7 @@ import java.util.concurrent.Callable
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.io.path.absolutePathString
 import kotlin.math.roundToInt
+import kotlin.time.Duration.Companion.seconds
 import maestro.device.Platform
 
 @CommandLine.Command(
@@ -179,6 +181,12 @@ class TestCommand : Callable<Int> {
         description = ["(Web only) Run the tests in headless mode"],
     )
     private var headless: Boolean = false
+
+    @Option(
+        names = ["--web-workers"],
+        description = ["(Web only) Run the tests in parallel with a given number of browser workers"],
+    )
+    private var webWorkers: Int? = null
 
     @Option(
         names = ["--screen-size"],
@@ -336,7 +344,7 @@ class TestCommand : Callable<Int> {
         )
         val availableDevices = connectedDevices.map { it.instanceId }.toSet()
         return getPassedOptionsDeviceIds(plan)
-            .filter { device -> device in availableDevices }
+            .filter { device -> device in availableDevices || device.startsWith("chromium") }
             .ifEmpty { availableDevices }
             .toList()
     }
@@ -365,6 +373,10 @@ class TestCommand : Callable<Int> {
           PrintUtils.warn("Web support is in Beta. We would appreciate your feedback!\n")
         }
 
+        if (webWorkers != null && allFlowsAreWebFlow(plan)) {
+            return@runBlocking runWebWorkers(webWorkers!!, plan, debugOutputPath, testOutputDir)
+        }
+
         val connectedDevices = DeviceService.listConnectedDevices(
             includeWeb = includeWeb,
             host = parent?.host,
@@ -373,7 +385,7 @@ class TestCommand : Callable<Int> {
         val availableDevicesIds = connectedDevices.map { it.instanceId }.toSet()
         val deviceIds = getPassedOptionsDeviceIds(plan)
             .filter { device ->
-                if (device !in availableDevicesIds) {
+                if (device !in availableDevicesIds && !device.startsWith("chromium")) {
                     throw CliError("Device $device was requested, but it is not connected.")
                 } else {
                     true
@@ -388,7 +400,7 @@ class TestCommand : Callable<Int> {
             .toList()
 
         val missingDevices = requestedShards - deviceIds.size
-        if (missingDevices > 0) {
+        if (missingDevices > 0 && !allFlowsAreWebFlow(plan)) {
             PrintUtils.warn("You have ${deviceIds.size} devices connected, which is not enough to run $requestedShards shards. Missing $missingDevices device(s).")
             throw CliError("Not enough devices connected (${deviceIds.size}) to run the requested number of shards ($requestedShards).")
         }
@@ -659,9 +671,106 @@ class TestCommand : Callable<Int> {
             }
     }
 
+    private fun runWebWorkers(
+        workers: Int,
+        plan: ExecutionPlan,
+        debugOutputPath: Path,
+        testOutputDir: Path?,
+    ): Int = runBlocking(Dispatchers.IO) {
+        if (workers > 1 && plan.sequence.flows.isNotEmpty()) {
+            error("Cannot run web workers sharded tests with sequential execution")
+        }
+
+        val flowCount = plan.flowsToRun.size
+        PrintUtils.info("Will run $flowCount web flows across $workers concurrent browser workers")
+        if (flowCount > 5) showCloudFasterResultsPromotionMessageIfNeeded()
+
+        val flowChannel = Channel<Path>(Channel.UNLIMITED)
+        plan.flowsToRun.forEach { flowChannel.trySend(it) }
+        flowChannel.close()
+
+        val results = (0 until workers).map { workerIndex ->
+            async(Dispatchers.IO + CoroutineName("worker-$workerIndex")) {
+                var passedCount = 0
+                var totalCount = 0
+                val suites = mutableListOf<TestExecutionSummary.SuiteResult>()
+
+                for (flow in flowChannel) {
+                    val deviceId = "chromium-${workerIndex + 1}"
+                    val driverHostPort = selectPort(workers)
+                    val singleFlowPlan = ExecutionPlan(listOf(flow), WorkspaceExecutionPlanner.FlowSequence(emptyList()), plan.workspaceConfig)
+
+                    val tripleResult: Triple<Int, Int, List<TestExecutionSummary.SuiteResult>> = MaestroSessionManager.newSession(
+                        host = parent?.host,
+                        port = parent?.port,
+                        teamId = appleTeamId,
+                        driverHostPort = driverHostPort,
+                        deviceId = deviceId,
+                        platform = platform ?: parent?.platform,
+                        isHeadless = headless,
+                        screenSize = screenSize,
+                        reinstallDriver = reinstallDriver,
+                        executionPlan = singleFlowPlan
+                    ) { session ->
+                        val suiteResult = runBlocking {
+                            TestSuiteInteractor(
+                                maestro = session.maestro,
+                                device = session.device,
+                                shardIndex = workerIndex,
+                                reporter = ReporterFactory.buildReporter(format, testSuiteName),
+                                captureSteps = format == ReportFormat.HTML_DETAILED,
+                            ).runTestSuite(
+                                executionPlan = singleFlowPlan,
+                                env = env,
+                                reportOut = null,
+                                debugOutputPath = debugOutputPath,
+                                testOutputDir = testOutputDir,
+                                deviceId = deviceId,
+                            )
+                        }
+                        Triple(suiteResult.passedCount ?: 0, suiteResult.totalTests ?: 0, suiteResult.suites)
+                    }
+                    passedCount += tripleResult.first
+                    totalCount += tripleResult.second
+                    suites.addAll(tripleResult.third)
+                }
+                Triple(passedCount, totalCount, TestExecutionSummary(
+                    passed = passedCount == totalCount,
+                    suites = listOf(TestExecutionSummary.SuiteResult(
+                        passed = passedCount == totalCount,
+                        flows = suites.flatMap { it.flows },
+                        duration = suites.mapNotNull { it.duration }.fold(0.seconds) { acc, dur -> acc + dur },
+                        deviceName = suites.firstOrNull()?.deviceName ?: "chromium-${workerIndex + 1}"
+                    )),
+                    passedCount = passedCount,
+                    totalTests = totalCount
+                ))
+            }
+        }.awaitAll()
+
+        val passed = results.sumOf { it.first ?: 0 }
+        val total = results.sumOf { it.second ?: 0 }
+        val suites = results.mapNotNull { it.third }
+
+        if (passed != total) {
+            showCloudDebugPromotionMessageIfNeeded()
+        }
+
+        suites.mergeSummaries()?.saveReport()
+
+        if (workers > 1) printShardsMessage(passed, total, suites)
+        if (analyze) TestAnalysisManager(apiUrl = apiUrl, apiKey = apiKey).runAnalysis(debugOutputPath)
+        if (passed == total) 0 else 1
+    }
+
     private fun getPassedOptionsDeviceIds(plan: ExecutionPlan): List<String> {
       val arguments = if (allFlowsAreWebFlow(plan)) {
-        "chromium"
+        val requestedShards = webWorkers ?: shardSplit ?: shardAll ?: 1
+        if (requestedShards > 1) {
+            (1..requestedShards).joinToString(",") { "chromium-$it" }
+        } else {
+            "chromium"
+        }
       } else deviceId ?: parent?.deviceId
       val deviceIds = arguments
         .orEmpty()

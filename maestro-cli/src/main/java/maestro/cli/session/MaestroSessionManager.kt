@@ -142,7 +142,7 @@ object MaestroSessionManager {
         deviceIndex: Int? = null,
     ): SelectedDevice {
 
-        if (deviceId == "chromium" || platform == Platform.WEB) {
+        if (deviceId?.startsWith("chromium") == true || platform == Platform.WEB) {
             return SelectedDevice(
                 platform = Platform.WEB,
                 deviceType = Device.DeviceType.BROWSER

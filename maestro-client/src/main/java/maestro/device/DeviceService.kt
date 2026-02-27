@@ -154,22 +154,28 @@ object DeviceService {
     }
 
     fun listWebDevices(): List<Device> {
-        return listOf(
-            Device.Connected(
+        val devices = mutableListOf<Device>()
+        // We add multiple chromium instances to support sharding natively
+        for (i in 1..20) {
+            val instanceId = if (i == 1) "chromium" else "chromium-$i"
+            val description = if (i == 1) "Chromium Web Browser" else "Chromium Web Browser $i"
+            
+            devices.add(Device.Connected(
                 platform = Platform.WEB,
-                description = "Chromium Web Browser",
-                instanceId = "chromium",
+                description = description,
+                instanceId = instanceId,
                 deviceType = Device.DeviceType.BROWSER
-            ),
-            Device.AvailableForLaunch(
-                modelId = "chromium",
+            ))
+            devices.add(Device.AvailableForLaunch(
+                modelId = instanceId,
                 language = null,
                 country = null,
-                description = "Chromium Web Browser",
+                description = description,
                 platform = Platform.WEB,
                 deviceType = Device.DeviceType.BROWSER
-            )
-        )
+            ))
+        }
+        return devices
     }
 
     fun listAndroidDevices(host: String? = null, port: Int? = null): List<Device> {
