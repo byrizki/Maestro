@@ -63,7 +63,9 @@ class TestSuiteInteractor(
 
         val flowResults = mutableListOf<TestExecutionSummary.FlowResult>()
 
-        PrintUtils.message("${shardPrefix}Waiting for flows to complete...")
+        val allFlows = executionPlan.sequence.flows + executionPlan.flowsToRun
+        val flowNames = allFlows.joinToString(", ") { it.toFile().nameWithoutExtension }
+        PrintUtils.message("${shardPrefix}Running flows: $flowNames")
 
         var passed = true
         val aiOutputs = mutableListOf<FlowAIOutput>()
