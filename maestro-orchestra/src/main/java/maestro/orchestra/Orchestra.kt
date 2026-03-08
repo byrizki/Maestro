@@ -419,7 +419,8 @@ class Orchestra(
     }
 
     private suspend fun assertConditionCommand(command: AssertConditionCommand): Boolean {
-        val timeout = (command.timeoutMs() ?: lookupTimeoutMs)
+        val explicitTimeout = command.timeoutMs()
+        val timeout = explicitTimeout ?: lookupTimeoutMs
         val debugMessage = """
             Assertion '${command.condition.description()}' failed. Check the UI hierarchy in debug artifacts to verify the element state and properties.
             
@@ -428,7 +429,8 @@ class Orchestra(
             - Element may be temporarily unavailable due to loading state
             - This could be a real regression that needs to be addressed
         """.trimIndent()
-        if (!evaluateCondition(command.condition, timeoutMs = timeout, commandOptional = command.optional)) {
+        if (!evaluateCondition(command.condition, timeoutMs = timeout, commandOptional = command.optional, adjustTimeout = explicitTimeout == null)) {
+            logger.info("Assertion failed or timed out after $timeout ms for condition: ${command.condition.description()}")
             throw MaestroException.AssertionFailure(
                 message = "Assertion is false: ${command.condition.description()}",
                 hierarchyRoot = maestro.viewHierarchy().root,
@@ -904,6 +906,7 @@ class Orchestra(
         condition: Condition?,
         commandOptional: Boolean,
         timeoutMs: Long? = null,
+        adjustTimeout: Boolean = true,
     ): Boolean {
         if (condition == null) {
             return true
@@ -940,10 +943,15 @@ class Orchestra(
         }
 
         condition.visible?.let {
+            val waitTimeoutMs = if (adjustTimeout) {
+                adjustedToLatestInteraction(timeoutMs ?: optionalLookupTimeoutMs)
+            } else {
+                timeoutMs ?: optionalLookupTimeoutMs
+            }
             try {
                 findElement(
                     selector = it,
-                    timeoutMs = adjustedToLatestInteraction(timeoutMs ?: optionalLookupTimeoutMs),
+                    timeoutMs = waitTimeoutMs,
                     optional = commandOptional,
                 )
             } catch (_: MaestroException.ElementNotFound) {
@@ -952,7 +960,16 @@ class Orchestra(
         }
 
         condition.notVisible?.let {
+<<<<<<< HEAD
             val disappeared = MaestroTimer.withTimeoutSuspend(adjustedToLatestInteraction(timeoutMs ?: optionalLookupTimeoutMs)) {
+=======
+            val waitTimeoutMs = if (adjustTimeout) {
+                adjustedToLatestInteraction(timeoutMs ?: optionalLookupTimeoutMs)
+            } else {
+                timeoutMs ?: optionalLookupTimeoutMs
+            }
+            val result = MaestroTimer.withTimeout(waitTimeoutMs) {
+>>>>>>> 8eddce79 (feat: Prevent timeout adjustment for conditions with explicit timeouts and add assertion failure logging.)
                 try {
                     findElement(
                         selector = it,
@@ -1313,6 +1330,8 @@ class Orchestra(
                 if (optional) optionalLookupTimeoutMs
                 else lookupTimeoutMs,
             )
+
+        logger.info("findElement: Waiting up to ${timeout}ms for element matching ${selector.description()}")
 
         val (description, filterFunc) = buildFilter(selector = selector)
         val debugMessage = """
