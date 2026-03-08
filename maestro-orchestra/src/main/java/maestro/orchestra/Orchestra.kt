@@ -850,7 +850,7 @@ class Orchestra(
     }
 
     private suspend fun retryCommand(command: RetryCommand, config: MaestroConfig?): Boolean {
-        val maxRetries = (command.maxRetries?.toIntOrNull() ?: 1).coerceAtMost(MAX_RETRIES_ALLOWED)
+        val maxRetries = command.maxRetries?.toIntOrNull() ?: 1
 
         var attempt = 0
         while (attempt <= maxRetries) {
@@ -1685,7 +1685,7 @@ class Orchestra(
         val REGEX_OPTIONS = setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL, RegexOption.MULTILINE)
 
         private const val MAX_ERASE_CHARACTERS = 50
-        private const val MAX_RETRIES_ALLOWED = 3
+
         private val logger = LoggerFactory.getLogger(Orchestra::class.java)
     }
 
