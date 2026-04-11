@@ -141,12 +141,12 @@ class WebDriver(
 
     private fun scrollToPoint(point: Point): Long {
         ensureOpen()
-        val windowHeight = executeJS("return window.innerHeight") as Long
+        val windowHeight = (executeJS("return window.innerHeight") as? Number)?.toLong() ?: 0L
 
         if (point.y >= 0 && point.y.toLong() <= windowHeight) return 0L
 
         val scrolledPixels =
-            executeJS("const delta = ${point.y} - Math.floor(window.innerHeight / 2); window.scrollBy({ top: delta, left: 0, behavior: 'smooth' }); return delta") as Long
+            (executeJS("const delta = ${point.y} - Math.floor(window.innerHeight / 2); window.scrollBy({ top: delta, left: 0, behavior: 'smooth' }); return delta") as? Number)?.toLong() ?: 0L
         sleep(3000L)
         return scrolledPixels
     }
@@ -393,7 +393,7 @@ class WebDriver(
         }
     }
 
-    override fun scrollVertical() {
+    override fun scrollVertical(id: String?) {
         // Check if this is a Flutter web app
         val isFlutter = executeJS("return window.maestro.isFlutterApp()") as? Boolean ?: false
         
@@ -401,8 +401,20 @@ class WebDriver(
             // Use Flutter-specific smooth animated scrolling
             executeAsyncJS("window.maestro.smoothScrollFlutter('UP', 500)", 1500L)
         } else {
-            // Use standard scroll for regular web pages
-            scroll("window.scrollY + Math.round(window.innerHeight / 2)", "window.scrollX")
+            if (id != null) {
+                val selector = "document.querySelector(\"[data-testid='$id']\") || document.getElementById('$id')"
+                executeJS("""
+                    const el = $selector;
+                    if (el) {
+                        el.scrollBy({ top: Math.round(el.clientHeight / 2), left: 0, behavior: 'instant' });
+                    } else {
+                        window.scroll({ top: window.scrollY + Math.round(window.innerHeight / 2), left: window.scrollX, behavior: 'instant' });
+                    }
+                """.trimIndent())
+            } else {
+                // Use standard scroll for regular web pages
+                scroll("window.scrollY + Math.round(window.innerHeight / 2)", "window.scrollX")
+            }
         }
     }
 
@@ -474,9 +486,41 @@ class WebDriver(
         }
     }
 
-    override fun swipe(elementPoint: Point, direction: SwipeDirection, durationMs: Long) {
+    override fun swipe(elementPoint: Point, direction: SwipeDirection, durationMs: Long, id: String?) {
         // Ignoring elementPoint to enable a rudimentary implementation of scrollUntilVisible for web
-        swipe(direction, durationMs)
+        if (id != null) {
+            val isFlutter = executeJS("return window.maestro.isFlutterApp()") as? Boolean ?: false
+            if (isFlutter) {
+                // Flutter web: Use smooth animated scrolling with easing
+                val waitMs = (durationMs + 1000).coerceAtLeast(1000L)
+                executeAsyncJS("window.maestro.smoothScrollFlutter('${direction.name}', $durationMs)", waitMs)
+            } else {
+                val selector = "document.querySelector(\"[data-testid='$id']\") || document.getElementById('$id')"
+                
+                val multiplier = if (direction == SwipeDirection.UP || direction == SwipeDirection.LEFT) 1 else -1
+                val isY = direction == SwipeDirection.UP || direction == SwipeDirection.DOWN
+                
+                executeJS("""
+                    const el = $selector;
+                    if (el) {
+                        if (${isY}) {
+                            el.scrollBy({ top: Math.round(el.clientHeight / 2) * $multiplier, left: 0, behavior: 'instant' });
+                        } else {
+                            el.scrollBy({ top: 0, left: Math.round(el.clientWidth / 2) * $multiplier, behavior: 'instant' });
+                        }
+                    } else {
+                        if (${isY}) {
+                            window.scroll({ top: window.scrollY + Math.round(window.innerHeight / 2) * $multiplier, left: window.scrollX, behavior: 'instant' });
+                        } else {
+                            window.scroll({ top: window.scrollY, left: window.scrollX + Math.round(window.innerWidth / 2) * $multiplier, behavior: 'instant' });
+                        }
+                    }
+                """.trimIndent())
+                sleep(300L)
+            }
+        } else {
+            swipe(direction, durationMs)
+        }
     }
 
     override fun backPress() {

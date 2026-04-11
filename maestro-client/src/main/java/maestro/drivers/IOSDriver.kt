@@ -223,7 +223,7 @@ class IOSDriver(
         return true
     }
 
-    override fun scrollVertical() {
+    override fun scrollVertical(id: String?) {
         val deviceInfo = deviceInfo()
         val width = deviceInfo.widthGrid
         val height = deviceInfo.heightGrid
@@ -322,7 +322,7 @@ class IOSDriver(
         }
     }
 
-    override fun swipe(elementPoint: Point, direction: SwipeDirection, durationMs: Long) {
+    override fun swipe(elementPoint: Point, direction: SwipeDirection, durationMs: Long, id: String?) {
         metrics.measured("operation", mapOf("command" to "swipeWithElementPoint", "direction" to direction.name, "durationMs" to durationMs.toString())) {
             val deviceInfo = deviceInfo()
             val width = deviceInfo.widthGrid

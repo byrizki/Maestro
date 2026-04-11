@@ -176,7 +176,7 @@ open class FakeDriver : Driver {
         return layout.toTreeNode()
     }
 
-    override fun scrollVertical() {
+    override fun scrollVertical(id: String?) {
         ensureOpen()
 
         events += Event.Scroll
@@ -204,7 +204,7 @@ open class FakeDriver : Driver {
         events += Event.SwipeWithDirection(swipeDirection, durationMs)
     }
 
-    override fun swipe(elementPoint: Point, direction: SwipeDirection, durationMs: Long) {
+    override fun swipe(elementPoint: Point, direction: SwipeDirection, durationMs: Long, id: String?) {
         ensureOpen()
         val todo = mutableListOf(layout)
         while (todo.isNotEmpty()) {

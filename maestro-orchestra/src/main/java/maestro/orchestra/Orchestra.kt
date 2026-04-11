@@ -341,7 +341,7 @@ class Orchestra(
             is TapOnPointV2Command -> tapOnPointV2Command(command)
             is BackPressCommand -> backPressCommand()
             is HideKeyboardCommand -> hideKeyboardCommand()
-            is ScrollCommand -> scrollVerticalCommand()
+            is ScrollCommand -> scrollVerticalCommand(command)
             is CopyTextFromCommand -> copyTextFromCommand(command)
             is SetClipboardCommand -> setClipboardCommand(command)
             is ScrollUntilVisibleCommand -> scrollUntilVisible(command)
@@ -705,8 +705,8 @@ class Orchestra(
         return true
     }
 
-    private suspend fun scrollVerticalCommand(): Boolean {
-        maestro.scrollVertical()
+    private suspend fun scrollVerticalCommand(command: ScrollCommand): Boolean {
+        maestro.scrollVertical(id = command.id)
         return true
     }
 
@@ -744,7 +744,8 @@ class Orchestra(
             maestro.swipeFromCenter(
                 direction,
                 durationMs = command.scrollDuration.toLong(),
-                waitToSettleTimeoutMs = command.waitToSettleTimeoutMs
+                waitToSettleTimeoutMs = command.waitToSettleTimeoutMs,
+                id = command.id
             )
         } while (System.currentTimeMillis() < endTime)
 
@@ -960,16 +961,12 @@ class Orchestra(
         }
 
         condition.notVisible?.let {
-<<<<<<< HEAD
-            val disappeared = MaestroTimer.withTimeoutSuspend(adjustedToLatestInteraction(timeoutMs ?: optionalLookupTimeoutMs)) {
-=======
             val waitTimeoutMs = if (adjustTimeout) {
                 adjustedToLatestInteraction(timeoutMs ?: optionalLookupTimeoutMs)
             } else {
                 timeoutMs ?: optionalLookupTimeoutMs
             }
-            val result = MaestroTimer.withTimeout(waitTimeoutMs) {
->>>>>>> 8eddce79 (feat: Prevent timeout adjustment for conditions with explicit timeouts and add assertion failure logging.)
+            val disappeared = MaestroTimer.withTimeoutSuspend(waitTimeoutMs) {
                 try {
                     findElement(
                         selector = it,

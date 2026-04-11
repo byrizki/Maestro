@@ -54,7 +54,7 @@ interface Driver {
 
     fun contentDescriptor(excludeKeyboardElements: Boolean = false): TreeNode
 
-    fun scrollVertical()
+    fun scrollVertical(id: String? = null)
 
     fun isKeyboardVisible(): Boolean
 
@@ -62,7 +62,7 @@ interface Driver {
 
     fun swipe(swipeDirection: SwipeDirection, durationMs: Long)
 
-    fun swipe(elementPoint: Point, direction: SwipeDirection, durationMs: Long)
+    fun swipe(elementPoint: Point, direction: SwipeDirection, durationMs: Long, id: String? = null)
 
     fun backPress()
 

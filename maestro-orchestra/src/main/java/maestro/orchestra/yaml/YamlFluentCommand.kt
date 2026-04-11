@@ -314,7 +314,7 @@ data class YamlFluentCommand(
                 )
             )
 
-            scroll != null -> listOf(MaestroCommand(ScrollCommand(label = scroll.label, optional = scroll.optional)))
+            scroll != null -> listOf(MaestroCommand(ScrollCommand(id = scroll.id, label = scroll.label, optional = scroll.optional)))
             takeScreenshot != null -> listOf(
                 MaestroCommand(
                     TakeScreenshotCommand(
@@ -998,6 +998,7 @@ data class YamlFluentCommand(
                 label = yaml.label,
                 optional = yaml.optional,
                 originalSpeedValue = yaml.speed,
+                id = yaml.id,
                 waitToSettleTimeoutMs = yaml.waitToSettleTimeoutMs
             )
         )

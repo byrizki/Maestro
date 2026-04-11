@@ -23,4 +23,5 @@ data class YamlActionPasteText(
 data class YamlActionScroll(
     val label: String? = null,
     val optional: Boolean = false,
+    val id: String? = null,
 )

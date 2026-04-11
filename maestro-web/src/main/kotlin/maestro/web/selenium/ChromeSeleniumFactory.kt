@@ -58,15 +58,13 @@ class ChromeSeleniumFactory(
 
                 if (isHeadless) {
                     addArguments("--headless=new")
-
-                    if(screenSize != null){
-                        addArguments("--window-size=" + screenSize.replace('x',','))
-                    }
-                    else{
-                        addArguments("--window-size=1024,768")
-                    }
-
                     setExperimentalOption("detach", true)
+                }
+
+                if (screenSize != null) {
+                    addArguments("--window-size=" + screenSize.replace('x', ','))
+                } else if (isHeadless) {
+                    addArguments("--window-size=1024,768")
                 }
             }
         )

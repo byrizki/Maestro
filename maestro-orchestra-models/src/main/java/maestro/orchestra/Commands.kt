@@ -109,6 +109,7 @@ data class ScrollUntilVisibleCommand(
     val waitToSettleTimeoutMs: Int? = null,
     val centerElement: Boolean,
     val originalSpeedValue: String? = scrollDuration,
+    val id: String? = null,
     override val label: String? = null,
     override val optional: Boolean = false,
 ) : Command {
@@ -152,6 +153,7 @@ data class ScrollUntilVisibleCommand(
             selector = selector.evaluateScripts(jsEngine),
             scrollDuration = scrollDuration.evaluateScripts(jsEngine).speedToDuration(),
             timeout = timeout.evaluateScripts(jsEngine).timeoutToMillis(),
+            id = id?.evaluateScripts(jsEngine),
             label = label?.evaluateScripts(jsEngine)
         )
     }
@@ -165,6 +167,7 @@ data class ScrollUntilVisibleCommand(
 }
 
 data class ScrollCommand(
+    val id: String? = null,
     override val label: String? = null,
     override val optional: Boolean = false,
 ) : Command {
@@ -188,6 +191,7 @@ data class ScrollCommand(
 
     override fun evaluateScripts(jsEngine: JsEngine): ScrollCommand {
         return copy(
+            id = id?.evaluateScripts(jsEngine),
             label = label?.evaluateScripts(jsEngine)
         )
     }

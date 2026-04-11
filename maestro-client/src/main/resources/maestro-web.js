@@ -53,12 +53,38 @@
         return `[${Math.round(l)},${Math.round(t)}][${Math.round(r)},${Math.round(b)}]`
     }
 
+    // Returns the visible clip rect of a node by intersecting it against all
+    // scrollable ancestors. Returns null if the element is fully clipped away.
+    const getClipRect = (node) => {
+        let clip = node.getBoundingClientRect();
+        let parent = node.parentElement;
+
+        while (parent && parent !== document.body) {
+            const style = window.getComputedStyle(parent);
+            const overflow = style.overflow + style.overflowX + style.overflowY;
+            if (/hidden|auto|scroll|clip/.test(overflow)) {
+                const parentRect = parent.getBoundingClientRect();
+                clip = {
+                    left: Math.max(clip.left, parentRect.left),
+                    top: Math.max(clip.top, parentRect.top),
+                    right: Math.min(clip.right, parentRect.right),
+                    bottom: Math.min(clip.bottom, parentRect.bottom),
+                };
+                // Fully clipped: element not visible at all
+                if (clip.left >= clip.right || clip.top >= clip.bottom) {
+                    return null;
+                }
+            }
+            parent = parent.parentElement;
+        }
+        return clip;
+    }
+
     const getNodeBounds = (node, iframeOffsetX = 0, iframeOffsetY = 0) => {
         if (isSynthetic(node)) {
             return getSyntheticNodeBounds(node);
         }
 
-        const rect = node.getBoundingClientRect()
         const vpx = maestro.viewportX;
         const vpy = maestro.viewportY;
         const vpw = maestro.viewportWidth || window.innerWidth;
@@ -66,10 +92,19 @@
 
         const scaleX = vpw / window.innerWidth;
         const scaleY = vph / window.innerHeight;
-        const l = (rect.x + iframeOffsetX) * scaleX + vpx;
-        const t = (rect.y + iframeOffsetY) * scaleY + vpy;
-        const r = (rect.x + rect.width + iframeOffsetX) * scaleX + vpx;
-        const b = (rect.y + rect.height + iframeOffsetY) * scaleY + vpy;
+
+        // Use clip-aware rect so elements scrolled out of an overflow container
+        // are reported as not visible by Maestro's visibility percentage check.
+        const clipped = getClipRect(node);
+        if (!clipped) {
+            // Return a zero-size out-of-viewport bounds so visibility = 0
+            return `[${Math.round(vpw + 1)},${Math.round(vph + 1)}][${Math.round(vpw + 1)},${Math.round(vph + 1)}]`;
+        }
+
+        const l = (clipped.left + iframeOffsetX) * scaleX + vpx;
+        const t = (clipped.top + iframeOffsetY) * scaleY + vpy;
+        const r = (clipped.right + iframeOffsetX) * scaleX + vpx;
+        const b = (clipped.bottom + iframeOffsetY) * scaleY + vpy;
 
         return `[${Math.round(l)},${Math.round(t)}][${Math.round(r)},${Math.round(b)}]`
     }

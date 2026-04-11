@@ -408,7 +408,7 @@ class AndroidDriver(
         }
     }
 
-    override fun scrollVertical() {
+    override fun scrollVertical(id: String?) {
         metrics.measured("operation", mapOf("command" to "scrollVertical")) {
             swipe(SwipeDirection.UP, 400)
         }
@@ -487,7 +487,7 @@ class AndroidDriver(
         }
     }
 
-    override fun swipe(elementPoint: Point, direction: SwipeDirection, durationMs: Long) {
+    override fun swipe(elementPoint: Point, direction: SwipeDirection, durationMs: Long, id: String?) {
         metrics.measured("operation", mapOf("command" to "swipeWithElementPoint", "direction" to direction.name, "durationMs" to durationMs.toString())) {
             val deviceInfo = deviceInfo()
             when (direction) {

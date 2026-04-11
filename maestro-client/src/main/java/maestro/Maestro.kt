@@ -163,19 +163,19 @@ class Maestro(
         waitForAppToSettle(waitToSettleTimeoutMs = waitToSettleTimeoutMs)
     }
 
-    suspend fun swipeFromCenter(swipeDirection: SwipeDirection, durationMs: Long, waitToSettleTimeoutMs: Int?) {
+    suspend fun swipeFromCenter(swipeDirection: SwipeDirection, durationMs: Long, waitToSettleTimeoutMs: Int?, id: String? = null) {
         val deviceInfo = deviceInfo()
 
         LOGGER.info("Swiping ${swipeDirection.name} from center")
         val center = Point(x = deviceInfo.widthGrid / 2, y = deviceInfo.heightGrid / 2)
-        runInterruptible(Dispatchers.IO) { driver.swipe(center, swipeDirection, durationMs) }
+        runInterruptible(Dispatchers.IO) { driver.swipe(center, swipeDirection, durationMs, id) }
         waitForAppToSettle(waitToSettleTimeoutMs = waitToSettleTimeoutMs)
     }
 
-    suspend fun scrollVertical() {
+    suspend fun scrollVertical(id: String? = null) {
         LOGGER.info("Scrolling vertically")
 
-        runInterruptible(Dispatchers.IO) { driver.scrollVertical() }
+        runInterruptible(Dispatchers.IO) { driver.scrollVertical(id) }
         waitForAppToSettle()
     }
 
