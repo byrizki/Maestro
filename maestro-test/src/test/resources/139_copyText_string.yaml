@@ -1,0 +1,4 @@
+appId: com.example.app
+---
+- copyText: "some string"
+- inputText: ${'Hello, ' + maestro.copiedText}

@@ -256,17 +256,25 @@ data class HideKeyboardCommand(
 }
 
 data class CopyTextFromCommand(
-    val selector: ElementSelector,
+    val selector: ElementSelector? = null,
+    val text: String? = null,
     override val label: String? = null,
     override val optional: Boolean = false,
 ) : Command {
 
     override val originalDescription: String
-        get() = "Copy text from element with ${selector.description()}"
+        get() = if (text != null) {
+            "Copy text '$text'"
+        } else if (selector != null) {
+            "Copy text from element with ${selector.description()}"
+        } else {
+            "Copy text"
+        }
 
     override fun evaluateScripts(jsEngine: JsEngine): CopyTextFromCommand {
         return copy(
-            selector = selector.evaluateScripts(jsEngine),
+            selector = selector?.evaluateScripts(jsEngine),
+            text = text?.evaluateScripts(jsEngine),
             label = label?.evaluateScripts(jsEngine)
         )
     }

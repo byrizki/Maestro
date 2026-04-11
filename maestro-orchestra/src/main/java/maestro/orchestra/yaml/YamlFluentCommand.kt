@@ -129,6 +129,7 @@ data class YamlFluentCommand(
     val setOrientation: YamlSetOrientation? = null,
     val repeat: YamlRepeatCommand? = null,
     val copyTextFrom: YamlElementSelectorUnion? = null,
+    val copyText: String? = null,
     val setClipboard: YamlSetClipboard? = null,
     val runScript: YamlRunScript? = null,
     val waitForAnimationToEnd: YamlWaitForAnimationToEndCommand? = null,
@@ -389,6 +390,13 @@ data class YamlFluentCommand(
             )
 
             copyTextFrom != null -> listOf(copyTextFromCommand(copyTextFrom))
+            copyText != null -> listOf(
+                MaestroCommand(
+                    CopyTextFromCommand(
+                        text = copyText
+                    )
+                )
+            )
             setClipboard != null -> listOf(
                 MaestroCommand(
                     SetClipboardCommand(

@@ -1602,7 +1602,13 @@ class Orchestra(
     )
 
     private suspend fun copyTextFromCommand(command: CopyTextFromCommand): Boolean {
-        val result = findElement(command.selector, optional = command.optional)
+        if (command.text != null) {
+            copiedText = command.text
+            jsEngine.setCopiedText(copiedText)
+            return true
+        }
+
+        val result = findElement(command.selector!!, optional = command.optional)
         copiedText = resolveText(result.element.treeNode.attributes)
             ?: throw MaestroException.UnableToCopyTextFromElement("Element does not contain text to copy: ${result.element}")
 
